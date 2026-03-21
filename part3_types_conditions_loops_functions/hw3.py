@@ -36,7 +36,7 @@ financial_transactions_storage: list[dict[str, Any]] = []
 
 def parse_amount(raw_amount: str) -> float | None:
     normalized = raw_amount.replace(",", ".")
-    if not normalized or not normalized.isdigit():
+    if not normalized.isdigit():
         return None
     return float(normalized)
 
@@ -60,17 +60,16 @@ def _is_same_month(date: tuple[int, int, int], report_date: tuple[int, int, int]
 
 
 def _update_category(categories: dict[str, float], category: str, amount: float) -> None:
-    categories[category] = categories.get(category, float()) + amount
+    categories[category] = categories.get(category, 0.0) + amount
 
 
 def _process_transaction(
         t: dict[str, Any],
         report_date: tuple[int, int, int],
-        total_capital: float,
-        month_income: float,
-        month_expenses: float,
+        state: tuple[float, float, float],
         categories: dict[str, float],
 ) -> tuple[float, float, float]:
+    total_capital, month_income, month_expenses = state
     t_date = t["date"]
     amount = float(t["amount"])
     is_cost = "category" in t
@@ -90,9 +89,9 @@ def _process_transaction(
 
 
 def make_up_statistics(report_date: tuple[int, int, int]) -> tuple[float, float, float, dict[str, float]]:
-    total_capital: float = float()
-    month_income: float = float()
-    month_expenses: float = float()
+    total_capital: float = 0.0
+    month_income: float = 0.0
+    month_expenses: float = 0.0
     categories: dict[str, float] = {}
 
     for t in financial_transactions_storage:
@@ -101,7 +100,7 @@ def make_up_statistics(report_date: tuple[int, int, int]) -> tuple[float, float,
         if not _date_leq(t["date"], report_date):
             continue
         total_capital, month_income, month_expenses = _process_transaction(
-            t, report_date, total_capital, month_income, month_expenses, categories
+            t, report_date, (total_capital, month_income, month_expenses), categories
         )
 
     return total_capital, month_income, month_expenses, categories
