@@ -233,11 +233,13 @@ def cost_handler(category_name: str, amount: float, income_date: str) -> str:
 
 
 def cost_categories_handler() -> str:
-    result: list[str] = []
-    for common, subcategories in EXPENSE_CATEGORIES.items():
-        for sub in subcategories:
-            result.append(f"{common}::{sub}")
+    result = [
+        f"{common}::{sub}"
+        for common, subcategories in EXPENSE_CATEGORIES.items()
+        for sub in subcategories
+    ]
     return "\n".join(result)
+
 
 
 def stats_handler(report_date: str) -> str:
