@@ -10,7 +10,7 @@ MonthlyState = tuple[float, float]
 KEY_DATE = "date"
 KEY_AMOUNT = "amount"
 KEY_CATEGORY = "category"
-ZERO = 0.0
+ZERO = 0
 
 UNKNOWN_COMMAND_MSG = "Unknown command!"
 NONPOSITIVE_VALUE_MSG = "Value must be grater than zero!"
@@ -194,10 +194,10 @@ def format_stats(report_date_raw: str, stats: Stats) -> str:
 
 
 def is_leap_year(year: int) -> bool:
-    divisible_by_400 = year % 400 == 0
-    divisible_by_4 = year % 4 == 0
-    not_divisible_by_100 = year % 100 != 0
-    return divisible_by_400 or (divisible_by_4 and not_divisible_by_100)
+    divisible_by_four_hundred = year % 400 == 0
+    divisible_by_four = year % 4 == 0
+    not_divisible_by_hundred = year % 100 != 0
+    return divisible_by_four_hundred or (divisible_by_four and not_divisible_by_hundred)
 
 
 def extract_date(maybe_dt: str) -> Date | None:
