@@ -8,6 +8,15 @@ INCORRECT_DATE_MSG = "Invalid date!"
 NOT_EXISTS_CATEGORY = "Category not exists!"
 OP_SUCCESS_MSG = "Added"
 
+DATE_PARTS_COUNT = 3
+MONTHS_IN_YEAR = 12
+FEBRUARY = 2
+
+CMD_INCOME_PARTS = 3
+CMD_COST_CATEGORIES_PARTS = 2
+CMD_COST_PARTS = 4
+CMD_STATS_PARTS = 2
+
 
 EXPENSE_CATEGORIES = {
     "Food": ("Supermarket", "Restaurants", "FastFood", "Coffee", "Delivery"),
@@ -47,7 +56,7 @@ def _date_leq(a: tuple[int, int, int], b: tuple[int, int, int]) -> bool:
 
 def make_up_statistics(report_date: tuple[int, int, int]) -> tuple[float, float, float, dict[str, float]]:
     """Считает капитал на дату, доходы/расходы текущего месяца и детализацию по категориям."""
-    r_day, r_month, r_year = report_date
+    _r_day, r_month, r_year = report_date
 
     total_capital = 0.0
     month_income = 0.0
@@ -58,8 +67,16 @@ def make_up_statistics(report_date: tuple[int, int, int]) -> tuple[float, float,
         if not t:
             continue
 
-        t_date = t.get("date")
-        if not isinstance(t_date, tuple) or not _date_leq(t_date, report_date) :
+        t_date_any = t.get("date")
+        if not (
+            isinstance(t_date_any, tuple)
+            and len(t_date_any) == DATE_PARTS_COUNT
+            and all(isinstance(p, int) for p in t_date_any)
+        ):
+            continue
+        t_date = (t_date_any[0], t_date_any[1], t_date_any[2])
+
+        if not _date_leq(t_date, report_date):
             continue
 
         amount = t.get("amount")
@@ -72,7 +89,7 @@ def make_up_statistics(report_date: tuple[int, int, int]) -> tuple[float, float,
         else:
             total_capital += float(amount)
 
-        d, m, y = t_date
+        _d, m, y = t_date
         if m == r_month and y == r_year:
             if is_cost:
                 month_expenses += float(amount)
@@ -123,11 +140,11 @@ def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
     Парсит дату формата DD-MM-YYYY из строки.
 
     :param str maybe_dt: Проверяемая строка
-    :return: typle формата (день, месяц, год) или None, если дата неправильная.
+    :return: tuple формата (день, месяц, год) или None, если дата неправильная.
     :rtype: tuple[int, int, int] | None
     """
     parts = maybe_dt.split("-")
-    if len(parts) != 3:
+    if len(parts) != DATE_PARTS_COUNT:
         return None
 
     day_s, month_s, year_s = parts
@@ -138,12 +155,12 @@ def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
     month = int(month_s)
     year = int(year_s)
 
-    if month < 1 or month > 12:
+    if month < 1 or month > MONTHS_IN_YEAR:
         return None
 
     days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     max_day = days_in_month[month - 1]
-    if month == 2 and is_leap_year(year):
+    if month == FEBRUARY and is_leap_year(year):
         max_day = 29
 
     if day < 1 or day > max_day:
@@ -202,68 +219,87 @@ def stats_handler(report_date: str) -> str:
     return format_stats(report_date, stats)
 
 
-def main() -> None:
-    command = input().strip()
-    if not command:
-        print(UNKNOWN_COMMAND_MSG)
-        return
-
-    parts = command.split('')
-
-    if parts[0] == "income":
-        if len(parts) != 3:
-            print(UNKNOWN_COMMAND_MSG)
-            return
-
-        amount_str, date_str = parts[1], parts[2]
-        amount = parse_amount(amount_str)
-        if amount is None:
-            print(UNKNOWN_COMMAND_MSG)
-            return
-
-        result = income_handler(amount, date_str)
-        print(result)
-        return
-
-    if parts[0] == "cost":
-        if len(parts) == 2 and parts[1] == "categories":
-            print(cost_categories_handler())
-            return
-
-        if len(parts) != 4:
-            print(UNKNOWN_COMMAND_MSG)
-            return
-
-        category, amount_raw, date_raw = parts[1], parts[2], parts[3]
-
-        if (not category) or (" " in category) or not category.isalpha():
-            print(UNKNOWN_COMMAND_MSG)
-            return
-
-        amount = parse_amount(amount_raw)
-        if amount is None:
-            print(UNKNOWN_COMMAND_MSG)
-            return
-
-        result = cost_handler(category, amount, date_raw)
-        if result == NOT_EXISTS_CATEGORY:
-            print(NOT_EXISTS_CATEGORY)
-            print(cost_categories_handler())
-            return
-
-        print(result)
-        return
-
-    if parts[0] == "stats":
-        if len(parts) != 2:
-            print(UNKNOWN_COMMAND_MSG)
-            return
-
-        print(stats_handler(parts[1]))
-        return
-
+def _print_unknown_command() -> None:
     print(UNKNOWN_COMMAND_MSG)
 
 
+def _handle_income(parts: list[str]) -> None:
+    if len(parts) != CMD_INCOME_PARTS:
+        _print_unknown_command()
+        return
+
+    amount_str, date_str = parts[1], parts[2]
+    amount = parse_amount(amount_str)
+    if amount is None:
+        _print_unknown_command()
+        return
+
+    print(income_handler(amount, date_str))
+
+
+def _handle_cost(parts: list[str]) -> None:
+    if len(parts) == CMD_COST_CATEGORIES_PARTS and parts[1] == "categories":
+        print(cost_categories_handler())
+        return
+
+    if len(parts) != CMD_COST_PARTS:
+        _print_unknown_command()
+        return
+
+    category, amount_raw, date_raw = parts[1], parts[2], parts[3]
+
+    if (not category) or (" " in category) or not category.isalpha():
+        _print_unknown_command()
+        return
+
+    amount = parse_amount(amount_raw)
+    if amount is None:
+        _print_unknown_command()
+        return
+
+    result = cost_handler(category, amount, date_raw)
+    if result == NOT_EXISTS_CATEGORY:
+        print(NOT_EXISTS_CATEGORY)
+        print(cost_categories_handler())
+        return
+
+    print(result)
+
+
+def _handle_stats(parts: list[str]) -> None:
+    if len(parts) != CMD_STATS_PARTS:
+        _print_unknown_command()
+        return
+
+    print(stats_handler(parts[1]))
+
+
+def main() -> None:
+    command = input().strip()
+    if not command:
+        _print_unknown_command()
+        return
+
+    parts = command.split()
+    if not parts:
+        _print_unknown_command()
+        return
+
+    cmd = parts[0]
+    if cmd == "income":
+        _handle_income(parts)
+        return
+
+    if cmd == "cost":
+        _handle_cost(parts)
+        return
+
+    if cmd == "stats":
+        _handle_stats(parts)
+        return
+
+    _print_unknown_command()
+
+
 if __name__ == "__main__":
-    main()  # блин, тесты не работают
+    main()
