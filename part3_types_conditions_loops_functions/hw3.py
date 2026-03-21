@@ -2,11 +2,11 @@
 
 from typing import Any
 
-UNKNOWN_COMMAND_MSG = 'Unknown command!'
-NONPOSITIVE_VALUE_MSG = 'Value must be grater than zero!'
-INCORRECT_DATE_MSG = 'Invalid date!'
-NOT_EXISTS_CATEGORY = 'Category not exists!'
-OP_SUCCESS_MSG = 'Added'
+UNKNOWN_COMMAND_MSG = "Unknown command!"
+NONPOSITIVE_VALUE_MSG = "Value must be grater than zero!"
+INCORRECT_DATE_MSG = "Invalid date!"
+NOT_EXISTS_CATEGORY = "Category not exists!"
+OP_SUCCESS_MSG = "Added"
 
 DATE_PARTS_COUNT = 3
 MONTHS_IN_YEAR = 12
@@ -41,7 +41,10 @@ def parse_amount(raw_amount: str) -> float | None:
     return float(normalized)
 
 
-def _date_leq(date1: tuple[int, int, int], date2: tuple[int, int, int]) -> bool:
+def _date_leq(
+        date1: tuple[int, int, int],
+        date2: tuple[int, int, int],
+) -> bool:
     return (date1[2], date1[1], date1[0]) <= (date2[2], date2[1], date2[0])
 
 
@@ -55,39 +58,46 @@ def _is_valid_transaction(t: dict[str, Any]) -> bool:
     )
 
 
-def _is_same_month(date: tuple[int, int, int], report_date: tuple[int, int, int]) -> bool:
+def _is_same_month(
+        date: tuple[int, int, int],
+        report_date: tuple[int, int, int],
+) -> bool:
     return date[1] == report_date[1] and date[2] == report_date[2]
 
 
-def _update_category(categories: dict[str, float], category: str, amount: float) -> None:
-    categories[category] = categories.get(category, 0) + amount
+def _update_category(
+        categories: dict[str, float],
+        category: str,
+        amount: float,
+) -> None:
+    categories[category] = categories.get(category, 0.0) + amount
 
 
 def make_up_statistics(
         report_date: tuple[int, int, int],
 ) -> tuple[float, float, float, dict[str, float]]:
-    total_capital = 0
-    month_income = 0
-    month_expenses = 0
+    total_capital: float = 0.0
+    month_income: float = 0.0
+    month_expenses: float = 0.0
     categories: dict[str, float] = {}
 
-    for t in financial_transactions_storage:
-        if not t or not _is_valid_transaction(t):
+    for transaction in financial_transactions_storage:
+        if not transaction or not _is_valid_transaction(transaction):
             continue
 
-        t_date = t["date"]
+        t_date = transaction["date"]
         if not _date_leq(t_date, report_date):
             continue
 
-        amount = float(t["amount"])
-        is_cost = "category" in t
+        amount = float(transaction["amount"])
+        is_cost = "category" in transaction
 
         total_capital += -amount if is_cost else amount
 
         if _is_same_month(t_date, report_date):
             if is_cost:
                 month_expenses += amount
-                category = t.get("category")
+                category = transaction.get("category")
                 if isinstance(category, str):
                     _update_category(categories, category, amount)
             else:
@@ -97,13 +107,13 @@ def make_up_statistics(
 
 
 def _format_categories(categories: dict[str, float]) -> list[str]:
-    lines = []
+    result: list[str] = []
     sorted_items = sorted(categories.items(), key=lambda item: item[0])
 
-    for idx, (cat, amt) in enumerate(sorted_items, 1):
-        lines.append(f"{idx}. {cat}: {int(amt)}")
+    for index, (category, amount) in enumerate(sorted_items, start=1):
+        result.append(f"{index}. {category}: {int(amount)}")
 
-    return lines
+    return result
 
 
 def format_stats(
@@ -137,7 +147,10 @@ def is_leap_year(year: int) -> bool:
     :return: Значение високосности.
     :rtype: bool
     """
-    return year % 400 == 0 or (year % 4 == 0 and year % 100 != 0)
+    is_div_400 = year % 400 == 0
+    is_div_4 = year % 4 == 0
+    is_not_div_100 = year % 100 != 0
+    return is_div_400 or (is_div_4 and is_not_div_100)
 
 
 def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
@@ -152,20 +165,19 @@ def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
     if len(parts) != DATE_PARTS_COUNT:
         return None
 
-    day_s, month_s, year_s = parts
-    if not (day_s.isdigit() and month_s.isdigit() and year_s.isdigit()):
+    if not all(part.isdigit() for part in parts):
         return None
 
     day, month, year = map(int, parts)
 
-    if month < 1 or month > MONTHS_IN_YEAR:
+    if not (1 <= month <= MONTHS_IN_YEAR):
         return None
 
     max_day = DAYS_IN_MONTH[month - 1]
     if month == FEBRUARY and is_leap_year(year):
         max_day = 29
 
-    if day < 1 or day > max_day:
+    if not (1 <= day <= max_day):
         return None
 
     return day, month, year
@@ -181,7 +193,9 @@ def income_handler(amount: float, income_date: str) -> str:
         financial_transactions_storage.append({})
         return INCORRECT_DATE_MSG
 
-    financial_transactions_storage.append({"amount": amount, "date": parsed_date})
+    financial_transactions_storage.append(
+        {"amount": amount, "date": parsed_date},
+    )
     return OP_SUCCESS_MSG
 
 
@@ -200,6 +214,7 @@ def cost_handler(category_name: str, amount: float, income_date: str) -> str:
         return NOT_EXISTS_CATEGORY
 
     common_category, direct_category = category_name.split("::", 1)
+
     if (
             common_category not in EXPENSE_CATEGORIES
             or direct_category not in EXPENSE_CATEGORIES[common_category]
@@ -208,13 +223,21 @@ def cost_handler(category_name: str, amount: float, income_date: str) -> str:
         return NOT_EXISTS_CATEGORY
 
     financial_transactions_storage.append(
-        {"category": category_name, "amount": amount, "date": parsed_date},
+        {
+            "category": category_name,
+            "amount": amount,
+            "date": parsed_date,
+        },
     )
     return OP_SUCCESS_MSG
 
 
 def cost_categories_handler() -> str:
-    return "\n".join(f"{k}::{v}" for k, kv in EXPENSE_CATEGORIES.items() for v in kv)
+    result: list[str] = []
+    for common, subcategories in EXPENSE_CATEGORIES.items():
+        for sub in subcategories:
+            result.append(f"{common}::{sub}")
+    return "\n".join(result)
 
 
 def stats_handler(report_date: str) -> str:
@@ -237,6 +260,7 @@ def _handle_income(parts: list[str]) -> None:
 
     amount_str, date_str = parts[1], parts[2]
     amount = parse_amount(amount_str)
+
     if amount is None:
         _print_unknown_command()
         return
