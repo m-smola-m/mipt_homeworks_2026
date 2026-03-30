@@ -358,7 +358,11 @@ def process_command(command: str) -> None:
 
 def main() -> None:
     while True:
-        process_command(input())
+        try:
+            line = input()
+        except EOFError:
+            break
+        process_command(line)
 
 
 if __name__ == "__main__":
