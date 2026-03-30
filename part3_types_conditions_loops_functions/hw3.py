@@ -58,8 +58,12 @@ financial_transactions_storage: list[dict[str, Any]] = []
 
 
 def parse_amount(raw_amount: str) -> float | None:
-    normalized = raw_amount.replace(",", ".")
-    if not normalized.isdigit():
+    normalized = raw_amount.strip().replace(",", ".")
+    if not normalized:
+        return None
+    if normalized.count(".") > 1:
+        return None
+    if not normalized.replace(".", "", 1).isdigit():
         return None
     return float(normalized)
 
@@ -73,13 +77,13 @@ def _date_leq(date1: Date, date2: Date) -> bool:
     return _date_key(date1) <= _date_key(date2)
 
 
-def _is_valid_transaction(t: dict[str, Any]) -> bool:
-    t_date = t.get(KEY_DATE)
+def _is_valid_transaction(transaction: dict[str, Any]) -> bool:
+    transaction_date = transaction.get(KEY_DATE)
     return (
-        isinstance(t_date, tuple)
-        and len(t_date) == DATE_PARTS_COUNT
-        and all(isinstance(p, int) for p in t_date)
-        and isinstance(t.get(KEY_AMOUNT), (int, float))
+        isinstance(transaction_date, tuple)
+        and len(transaction_date) == DATE_PARTS_COUNT
+        and all(isinstance(p, int) for p in transaction_date)
+        and isinstance(transaction.get(KEY_AMOUNT), (int, float))
     )
 
 
@@ -93,34 +97,34 @@ def _update_category(categories: dict[str, float], category: str, amount: float)
 
 
 def _apply_monthly(
-    t: dict[str, Any],
+    transaction: dict[str, Any],
     amount: float,
     monthly_state: MonthlyState,
     categories: dict[str, float],
     report_date: Date,
 ) -> MonthlyState:
     month_income, month_expenses = monthly_state
-    if not _is_same_month(t[KEY_DATE], report_date):
+    if not _is_same_month(transaction[KEY_DATE], report_date):
         return month_income, month_expenses
-    if KEY_CATEGORY in t:
+    if KEY_CATEGORY in transaction:
         month_expenses += amount
-        cat = t.get(KEY_CATEGORY)
-        if isinstance(cat, str):
-            _update_category(categories, cat, amount)
+        category = transaction.get(KEY_CATEGORY)
+        if isinstance(category, str):
+            _update_category(categories, category, amount)
     else:
         month_income += amount
     return month_income, month_expenses
 
 
 def _process_transaction(
-    t: dict[str, Any],
+    transaction: dict[str, Any],
     report_date: Date,
     state: State,
     categories: dict[str, float],
 ) -> State:
     total_capital, month_income, month_expenses = state
-    amount = float(t[KEY_AMOUNT])
-    is_cost = KEY_CATEGORY in t
+    amount = float(transaction[KEY_AMOUNT])
+    is_cost = KEY_CATEGORY in transaction
 
     if is_cost:
         total_capital -= amount
@@ -128,7 +132,7 @@ def _process_transaction(
         total_capital += amount
 
     month_income, month_expenses = _apply_monthly(
-        t,
+        transaction,
         amount,
         (month_income, month_expenses),
         categories,
@@ -144,13 +148,13 @@ def make_up_statistics(report_date: Date) -> Stats:
     month_expenses: float = ZERO
     categories: dict[str, float] = {}
 
-    for t in financial_transactions_storage:
-        if not t or not _is_valid_transaction(t):
+    for transaction in financial_transactions_storage:
+        if not transaction or not _is_valid_transaction(transaction):
             continue
-        if not _date_leq(t[KEY_DATE], report_date):
+        if not _date_leq(transaction[KEY_DATE], report_date):
             continue
         total_capital, month_income, month_expenses = _process_transaction(
-            t, report_date, (total_capital, month_income, month_expenses), categories
+            transaction, report_date, (total_capital, month_income, month_expenses), categories
         )
 
     return total_capital, month_income, month_expenses, categories
@@ -159,8 +163,8 @@ def make_up_statistics(report_date: Date) -> Stats:
 def _format_categories(categories: dict[str, float]) -> list[str]:
     sorted_items = sorted(categories.items(), key=lambda item: item[0])
     lines: list[str] = []
-    for index, (cat, amt) in enumerate(sorted_items, 1):
-        lines.append(f"{index}. {cat}: {int(amt)}")
+    for index, (category, amount) in enumerate(sorted_items, 1):
+        lines.append(f"{index}. {category}: {int(amount)}")
     return lines
 
 
@@ -306,7 +310,7 @@ def _handle_cost(parts: list[str]) -> None:
         return
 
     category, amount_raw, date_raw = _parse_cost_parts(parts)
-    if not category or (" " in category) or not category.isalpha():
+    if not category or " " in category:
         _print_unknown_command()
         return
 
@@ -334,26 +338,26 @@ def _handle_stats(parts: list[str]) -> None:
 
 
 def main() -> None:
-    command = input().strip()
-    if not command:
-        _print_unknown_command()
-        return
+    while True:
+        command = input().strip()
+        if not command:
+            continue
 
-    parts = command.split()
-    if not parts:
-        _print_unknown_command()
-        return
+        parts = command.split()
+        if not parts:
+            _print_unknown_command()
+            continue
 
-    cmd = parts[0]
+        cmd = parts[0]
 
-    if cmd == "income":
-        _handle_income(parts)
-    elif cmd == "cost":
-        _handle_cost(parts)
-    elif cmd == "stats":
-        _handle_stats(parts)
-    else:
-        _print_unknown_command()
+        if cmd == "income":
+            _handle_income(parts)
+        elif cmd == "cost":
+            _handle_cost(parts)
+        elif cmd == "stats":
+            _handle_stats(parts)
+        else:
+            _print_unknown_command()
 
 
 if __name__ == "__main__":
