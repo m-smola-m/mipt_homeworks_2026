@@ -337,27 +337,28 @@ def _handle_stats(parts: list[str]) -> None:
     print(stats_handler(parts[1]))
 
 
+def process_command(command: str) -> None:
+    parts = command.strip().split()
+    if not parts:
+        return
+
+    cmd = parts[0]
+    handlers = {
+        "income": _handle_income,
+        "cost": _handle_cost,
+        "stats": _handle_stats,
+    }
+    handler = handlers.get(cmd)
+
+    if handler:
+        handler(parts)
+    else:
+        _print_unknown_command()
+
+
 def main() -> None:
     while True:
-        command = input().strip()
-        if not command:
-            continue
-
-        parts = command.split()
-        if not parts:
-            _print_unknown_command()
-            continue
-
-        cmd = parts[0]
-
-        if cmd == "income":
-            _handle_income(parts)
-        elif cmd == "cost":
-            _handle_cost(parts)
-        elif cmd == "stats":
-            _handle_stats(parts)
-        else:
-            _print_unknown_command()
+        process_command(input())
 
 
 if __name__ == "__main__":
