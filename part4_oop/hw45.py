@@ -101,7 +101,7 @@ class LFUPolicy(Policy[K]):
 
         maybe_removed = list(self._key_counter)
         if len(self._key_counter) > self.capacity:
-            last_added_key = max(self._key_order, key=self._key_order.get)
+            last_added_key = max(self._key_order, key=lambda k: self._key_order.get(k, -1))
             maybe_removed = [key for key in maybe_removed if key != last_added_key]
             if not maybe_removed:
                 return None
