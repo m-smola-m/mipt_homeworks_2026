@@ -85,11 +85,13 @@ class LFUPolicy(Policy[K]):
     _key_counter: dict[K, int] = field(default_factory=dict, init=False)
     _key_order: dict[K, int] = field(default_factory=dict, init=False)
     _order_counter: int = field(default=0, init=False)
+    _last_added_key: K | None = field(default=None, init=False)
 
     def register_access(self, key: K) -> None:
         if key not in self._key_counter:
             self._key_order[key] = self._order_counter
             self._order_counter += 1
+            self._last_added_key = key
         self._key_counter[key] = self._key_counter.get(key, 0) + 1
 
     def get_key_to_evict(self) -> K | None:
@@ -99,16 +101,8 @@ class LFUPolicy(Policy[K]):
         if not self._key_counter:
             return None
 
-        maybe_removed = list(self._key_counter)
-        if len(self._key_counter) > self.capacity:
-            last_added_key = max(self._key_order, key=lambda k: self._key_order.get(k, -1))
-            maybe_removed = [key for key in maybe_removed if key != last_added_key]
-            if not maybe_removed:
-                return None
-        return min(
-            maybe_removed,
-            key=lambda k: (self._key_counter[k], self._key_order[k]),
-        )
+        maybe_removed = self._select_candidates(self._last_added_key)
+        return self._select_min_key(maybe_removed)
 
     def remove_key(self, key: K) -> None:
         self._key_counter.pop(key, None)
@@ -118,10 +112,24 @@ class LFUPolicy(Policy[K]):
         self._key_counter.clear()
         self._key_order.clear()
         self._order_counter = 0
+        self._last_added_key = None
 
     @property
     def has_keys(self) -> bool:
         return len(self._key_counter) > 0
+
+    def _select_candidates(self, last_added_key: K | None) -> list[K]:
+        if last_added_key is None or len(self._key_counter) <= self.capacity:
+            return list(self._key_counter)
+        return [key for key in self._key_counter if key != last_added_key]
+
+    def _select_min_key(self, candidates: list[K]) -> K | None:
+        if not candidates:
+            return None
+        return min(
+            candidates,
+            key=lambda k: (self._key_counter[k], self._key_order[k]),
+        )
 
 
 @dataclass
