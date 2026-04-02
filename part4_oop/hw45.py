@@ -83,36 +83,37 @@ class LRUPolicy(Policy[K]):
 class LFUPolicy(Policy[K]):
     capacity: int = 5
     _key_counter: dict[K, int] = field(default_factory=dict, init=False)
-    _order: list[K] = field(default_factory=list, init=False)
+    _key_order: dict[K, int] = field(default_factory=dict, init=False)
+    _order_counter: int = field(default=0, init=False)
 
     def register_access(self, key: K) -> None:
         if key not in self._key_counter:
-            self._order.append(key)
+            self._key_order[key] = self._order_counter
+            self._order_counter += 1
         self._key_counter[key] = self._key_counter.get(key, 0) + 1
 
     def get_key_to_evict(self) -> K | None:
-        if len(self._key_counter) >= self.capacity:
-            min_count = min(self._key_counter.values())
-            min_keys = [key for key in self._order if self._key_counter.get(key) == min_count]
-            if len(min_keys) > 1:
-                return min_keys[0]
-            if len(min_keys) == 1 and len(self._key_counter) > self.capacity:
-                second_min_count = min(count for count in self._key_counter.values() if count > min_count)
-                for key in self._order:
-                    if self._key_counter.get(key) == second_min_count:
-                        return key
-            if len(min_keys) == 1:
-                return min_keys[0]
-        return None
+        if len(self._key_counter) <= self.capacity:
+            return None
+
+        last_added_key = max(self._key_order, key=self._key_order.get)
+
+        maybe_removed = [k for k in self._key_counter if k != last_added_key]
+        if not maybe_removed:
+            return None
+
+        return min(
+            maybe_removed, key=lambda k: (self._key_counter[k], self._key_order[k])
+        )
 
     def remove_key(self, key: K) -> None:
         self._key_counter.pop(key, None)
-        if key in self._order:
-            self._order.remove(key)
+        self._key_order.pop(key, None)
 
     def clear(self) -> None:
         self._key_counter.clear()
-        self._order.clear()
+        self._key_order.clear()
+        self._order_counter = 0
 
     @property
     def has_keys(self) -> bool:
