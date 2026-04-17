@@ -47,11 +47,11 @@ class CircuitBreaker:
         self.time_to_recover = time_to_recover
         self.triggers_on = triggers_on
         self.error_count = 0
-        self.block_time = None
+        self.block_time: datetime | None = None
 
     def __call__(self, func: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R_co:
             now = datetime.now(UTC)
             if self.block_time is not None:
                 if (now - self.block_time).total_seconds() < self.time_to_recover:
