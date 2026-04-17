@@ -1,4 +1,6 @@
 import json
+from datetime import UTC, datetime
+from functools import wraps
 from typing import Any, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
 
@@ -20,22 +22,60 @@ class CallableWithMeta(Protocol[P, R_co]):
 
 
 class BreakerError(Exception):
-    pass
+    def __init__(self, message: str, func_name: str, block_time: datetime):
+        super().__init__(message)
+        self.func_name = func_name
+        self.block_time = block_time
 
 
 class CircuitBreaker:
     def __init__(
         self,
-        critical_count: int,
-        time_to_recover: int,
-        triggers_on: type[Exception],
-    ): ...
+        critical_count: int = 5,
+        time_to_recover: int = 30,
+        triggers_on: type[Exception] = Exception,
+    ):
+        errors = []
+        if not isinstance(critical_count, int) or critical_count <= 0:
+            errors.append(ValueError(INVALID_CRITICAL_COUNT))
+        if not isinstance(time_to_recover, int) or time_to_recover <= 0:
+            errors.append(ValueError(INVALID_RECOVERY_TIME))
+        if errors:
+            raise ExceptionGroup(VALIDATIONS_FAILED, errors)
+
+        self.critical_count = critical_count
+        self.time_to_recover = time_to_recover
+        self.triggers_on = triggers_on
+        self.error_count = 0
+        self.block_time: datetime | None = None
 
     def __call__(self, func: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
-        raise NotImplementedError
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R_co:
+            now = datetime.now(UTC)
+            if self.block_time is not None:
+                if (now - self.block_time).total_seconds() < self.time_to_recover:
+                    error = BreakerError(TOO_MUCH, f"{func.__module__}.{func.__name__}", self.block_time)
+                    raise error
+                self.block_time = None
+                self.error_count = 0
+            try:
+                result = func(*args, **kwargs)
+            except self.triggers_on as e:
+                self.error_count += 1
+                if self.error_count >= self.critical_count:
+                    block_time = datetime.now(UTC)
+                    self.block_time = block_time
+                    error = BreakerError(TOO_MUCH, f"{func.__module__}.{func.__name__}", block_time)
+                    raise error from e
+                raise
+            else:
+                self.error_count = 0
+            return result
+        return wrapper
 
 
-circuit_breaker = CircuitBreaker(5, 30, Exception)
+circuit_breaker = CircuitBreaker()
 
 
 # @circuit_breaker
