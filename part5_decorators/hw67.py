@@ -42,7 +42,7 @@ class CircuitBreaker:
             errors.append(ValueError(INVALID_RECOVERY_TIME))
         if errors:
             raise ExceptionGroup(VALIDATIONS_FAILED, errors)
-        
+
         self.critical_count = critical_count
         self.time_to_recover = time_to_recover
         self.triggers_on = triggers_on
@@ -57,13 +57,10 @@ class CircuitBreaker:
                 if (now - self.block_time).total_seconds() < self.time_to_recover:
                     error = BreakerError(TOO_MUCH, f"{func.__module__}.{func.__name__}", self.block_time)
                     raise error
-                else:
-                    self.block_time = None
-                    self.error_count = 0
+                self.block_time = None
+                self.error_count = 0
             try:
                 result = func(*args, **kwargs)
-                self.error_count = 0
-                return result
             except self.triggers_on as e:
                 self.error_count += 1
                 if self.error_count >= self.critical_count:
@@ -72,6 +69,9 @@ class CircuitBreaker:
                     error = BreakerError(TOO_MUCH, f"{func.__module__}.{func.__name__}", block_time)
                     raise error from e
                 raise
+            else:
+                self.error_count = 0
+            return result
         return wrapper
 
 
