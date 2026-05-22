@@ -201,14 +201,18 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
+# secrets
+config.yaml
+final_project/config.yaml
 
 # IDE
-.idea
-.vscode
+.idea/
 
-# MacOS
-.DS_Store
+# Coverage
+final_project/htmlcov/
+final_project/.coverage
+
+final_project/.mypy_cache/
+final_project/.ruff_cache/
+final_project/tests/__pycache__/
+final_project/gigavibe/__pycache__/
