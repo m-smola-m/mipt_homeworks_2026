@@ -38,6 +38,6 @@ def expand_file_tokens(text: str) -> tuple[str, list[str]]:
             errors.append(str(exception))
             new_string = ''
 
-        text = text[:start] + new_string + text[end + 2:]
+        text = text[:start] + new_string + text[end + 2 :]
 
     return text, errors

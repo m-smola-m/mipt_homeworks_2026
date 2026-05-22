@@ -36,8 +36,7 @@ def test_no_limits_keeps_all_messages() -> None:
         {'role': 'assistant', 'content': 'два'},
     ]
     new_msg = {'role': 'user', 'content': 'три'}
-    result = apply_limits(history, new_msg, limit_messages=None,
-                          limit_chars=None)
+    result = apply_limits(history, new_msg, limit_messages=None, limit_chars=None)
     assert len(result) == 3
     assert result[-1]['content'] == 'три'
 

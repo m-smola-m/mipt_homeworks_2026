@@ -19,7 +19,7 @@ def paragraph_chunks(text: str, n: int) -> list[str]:
     paragraphs = split_paragraphs(text)
     chunks = []
     for i in range(0, len(paragraphs), n):
-        chunk = '\n\n'.join(paragraphs[i:i + n])
+        chunk = '\n\n'.join(paragraphs[i : i + n])
         if chunk:
             chunks.append(chunk)
     return chunks

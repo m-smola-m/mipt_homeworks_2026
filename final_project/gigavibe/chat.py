@@ -4,7 +4,7 @@ from .splitter import iter_chunks
 from .settings import Config, ConfigError, load_config
 from .reader import FileError, expand_file_tokens, read_text_file
 from .context import apply_limits
-from .client import Llm
+from .client import Llm, _sanitize
 
 
 Message = dict[str, str]
@@ -159,7 +159,7 @@ def run_chat() -> int:
 
     while True:
         try:
-            user_input = input('>>> ').strip()
+            user_input = _sanitize(input('>>> ').strip())
         except EOFError:
             break
 
@@ -184,8 +184,7 @@ def run_chat() -> int:
             print(f'Ошибка файла: {err}')
 
         user_message: Message = {'role': 'user', 'content': expanded}
-        history = apply_limits(history, user_message, config.limit_messages,
-                               config.limit_chars)
+        history = apply_limits(history, user_message, config.limit_messages, config.limit_chars)
         messages = build_messages(history, config.system_prompt)
 
         result = request(client, config, messages)
